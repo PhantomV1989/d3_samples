@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+
+
+path {
+  stroke: #fff;
+}
+
+.focus text {
+  text-anchor: middle;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+</style>
+<body>
+<script src="./lib/d3.v3.min.js"></script>
+<script>
+
+var legendList=[];var rootName=[];
+var ttBox = document.createElement("div");
+ttBox.style.visibility = "hidden"; 
+ ttBox.style.position = "fixed";
+    ttBox.style.top = "1ex";
+    ttBox.style.left = "1ex";
+    ttBox.style.padding = "0.5em";
+    //ttBox.style.width = "10em";
+    ttBox.style.borderRadius = "0.5em";
+    ttBox.style.border = "black";
+    ttBox.style.backgroundColor = "rgb(20,20,100)";
+    ttBox.style.font = "bold 15px arial,serif";
+     ttBox.style.color="white";
+document.body.appendChild(ttBox);
+
+
+
+
+var width = window.innerWidth,
+    height = window.innerHeight*7/8,
+    radius = (Math.min(width, height) / 2) - 10;
+
+var formatNumber = d3.format(",d");
+
+var x = d3.scale.linear()
+    .range([0, 2 * Math.PI]);
+
+var y = d3.scale.sqrt()
+    .range([0, radius]);
+
+var color = d3.scale.category20c();
+
+var partition = d3.layout.partition()
+    .value(function(d) { return d.size; });
+
+var arc = d3.svg.arc()
+    .startAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x))); })
+    .endAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx))); })
+    .innerRadius(function(d) { return Math.max(0, y(d.y)); })
+    .outerRadius(function(d) { return Math.max(0, y(d.y + d.dy)); });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("transform", "translate(" + width / 2 + "," + (height / 2) + ")");
+
+d3.json("./data/sunburst.json", function(error, root) {
+  if (error) throw error;
+
+  rootName=root['name'];
+  svg.selectAll("path")
+      .data(partition.nodes(root))
+      .enter().append("path")
+      .attr("d", arc)
+      .style("fill", function(d) {
+	  var legend=(d.children ? d : d.parent).name;
+	  var legendColor=color((d.children ? d : d.parent).name);
+	  if(d.name==rootName||d.parent.name==rootName)
+	  { legendList.push({'name':legend,'color':legendColor});}
+	  return legendColor; }
+	  )
+      .on("click", click)
+    ;
+
+svg.selectAll("path")
+.on("mouseenter", mouseMove)
+.on("mouseleave",mouseLeave)
+;
+
+for (i=0;i<legendList.length;i++)
+{
+document.body.appendChild(createDivColorTag(i,legendList));
+}
+
+});
+
+
+
+function mouseMove(d)
+	{
+ document.addEventListener("mousemove", OnMouseMove);
+ttBox.innerHTML =d.name + "\n" + "Count:"+formatNumber(d.value);
+ttBox.style.visibility ="visible"; 
+	};
+
+ function OnMouseMove(event)
+		{
+   var offset=15;   
+    ttBox.style.left = (event.pageX+offset).toString() + "px";
+    ttBox.style.top = (event.pageY+offset).toString() + "px";
+    
+    
+		}
+
+function mouseLeave(d)
+	{
+ document.removeEventListener("mousemove", OnMouseMove);
+ttBox.style.visibility ="hidden";
+	};
+
+
+function click(d) {
+  svg.transition()
+      .duration(750)
+      .tween("scale", function() {
+        var xd = d3.interpolate(x.domain(), [d.x, d.x + d.dx]),
+            yd = d3.interpolate(y.domain(), [d.y, 1]),
+            yr = d3.interpolate(y.range(), [d.y ? 20 : 0, radius]);
+        return function(t) { x.domain(xd(t)); y.domain(yd(t)).range(yr(t)); };
+      })
+    .selectAll("path")
+      .attrTween("d", function(d) { return function() { return arc(d); }; });
+}
+
+function createDivColorTag(i,legendList)
+{
+var name=legendList[i]['name'];
+var div=document.createElement("DIV");
+div.id="legend";
+var divDT=document.createElement("DIV");
+divDT.id="color";
+divDT.style="float: left; width: 30px; height: 10px; margin: 8px; ";
+divDT.position= "relative";
+divDT.style.background = legendList[i]['color'];
+div.append(divDT);
+
+
+var divDT2=document.createElement("DIV");
+divDT2.style="float: left; color:black; margin-right: 12px; margin-top: 5px;font-size:70%;";
+divDT2.position= "relative";
+divDT2.innerHTML = name;
+divDT2.style.font = "bold 15px arial,serif";
+div.append(divDT2);
+
+
+return div;
+}
+
+
+
+d3.select(self.frameElement).style("height", height + "px");
+
+</script>
